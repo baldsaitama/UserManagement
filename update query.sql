@@ -1,0 +1,2 @@
+update pl_users set name = @name, phone = @phone, email= @email, address = @address, join_date=@join_date,
+gender = @gender, fk_dept_id=@fk_dept_id, fk_role_id= @fk_role_id, fk_desig_id=@fk_desig_id where user_id=@user_id
