@@ -1,7 +1,6 @@
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace UserManagement
@@ -262,40 +261,56 @@ namespace UserManagement
             {
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    using (SqlCommand cmd = conn.CreateCommand())
+                    SqlCommand query = new SqlCommand("Select username from pl_users where username = @username and user_id != @userid", conn);
+                    query.Parameters.AddWithValue("@userid", userId);
+                    query.Parameters.AddWithValue("@username", txtUserName.Text);
+                    SqlDataAdapter sdaUserCheck = new SqlDataAdapter(query);
+                    DataTable dtUserCheck = new DataTable();
+                    sdaUserCheck.Fill(dtUserCheck);
+                    if (dtUserCheck.Rows.Count > 0)
                     {
-                        cmd.CommandText = "update pl_users set name = @name, phone = @phone, email= @email," +
-                            " address = @address,join_date=@join_date, gender = @gender, fk_dept_id=@fk_dept_id," +
-                            " fk_role_id= @fk_role_id, fk_desig_id=@fk_desig_id where user_id=@user_id";
-                        string name = txtName.Text;
-                        cmd.Parameters.AddWithValue("@user_id", userId);
-                        cmd.Parameters.AddWithValue("@name", txtName.Text);
-                        cmd.Parameters.AddWithValue("@phone", txtPhone.Text);
-                        cmd.Parameters.AddWithValue("@email", txtEmail.Text);
-                        cmd.Parameters.AddWithValue("@address", txtAddress.Text);
-                        cmd.Parameters.AddWithValue("@join_date", dtpJoinDate.Value);
-                        if (optMale.Checked)
+                        MessageBox.Show("Username already exists! Please select another username!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    else
+                    {
+                        using (SqlCommand cmd = conn.CreateCommand())
                         {
-                            cmd.Parameters.AddWithValue("@gender", "Male");
+                            cmd.CommandText = "update pl_users set name = @name, phone = @phone, email= @email," +
+                                " address = @address,join_date=@join_date, gender = @gender, username = @username, fk_dept_id=@fk_dept_id," +
+                                " fk_role_id= @fk_role_id, fk_desig_id=@fk_desig_id where user_id=@user_id";
+                            string name = txtName.Text;
+                            cmd.Parameters.AddWithValue("@user_id", userId);
+                            cmd.Parameters.AddWithValue("@name", txtName.Text);
+                            cmd.Parameters.AddWithValue("@phone", txtPhone.Text);
+                            cmd.Parameters.AddWithValue("@email", txtEmail.Text);
+                            cmd.Parameters.AddWithValue("@address", txtAddress.Text);
+                            cmd.Parameters.AddWithValue("@join_date", dtpJoinDate.Value);
+                            if (optMale.Checked)
+                            {
+                                cmd.Parameters.AddWithValue("@gender", "Male");
+                            }
+                            else if (optFemale.Checked)
+                            {
+                                cmd.Parameters.AddWithValue("@gender", "Female");
+                            }
+                            else
+                            {
+                                cmd.Parameters.AddWithValue("@gender", "Others");
+                            }
+                            cmd.Parameters.AddWithValue("username", txtUserName.Text);
+                            cmd.Parameters.AddWithValue("@fk_role_id", cmbRole.SelectedValue);
+                            cmd.Parameters.AddWithValue("@fk_dept_id", cmbDepartment.SelectedValue);
+                            cmd.Parameters.AddWithValue("@fk_desig_id", cmbDesignation.SelectedValue);
+                            conn.Open();
+                            cmd.ExecuteNonQuery();
+                            conn.Close();
+                            frmAddMore add = new frmAddMore();
+                            add.clearControls(this);
+                            showData();
+                            MessageBox.Show($"User {name} updated!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
-                        else if (optFemale.Checked)
-                        {
-                            cmd.Parameters.AddWithValue("@gender", "Female");
-                        }
-                        else
-                        {
-                            cmd.Parameters.AddWithValue("@gender", "Others");
-                        }
-                        cmd.Parameters.AddWithValue("@fk_role_id", cmbRole.SelectedValue);
-                        cmd.Parameters.AddWithValue("@fk_dept_id", cmbDepartment.SelectedValue);
-                        cmd.Parameters.AddWithValue("@fk_desig_id", cmbDesignation.SelectedValue);
-                        conn.Open();
-                        cmd.ExecuteNonQuery();
-                        conn.Close();
-                        frmAddMore add = new frmAddMore();
-                        add.clearControls(this);
-                        showData();
-                        MessageBox.Show($"User {name} updated!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
                     }
                 }
             }
@@ -362,6 +377,29 @@ namespace UserManagement
 
             }
         }
+
+        private void btnDelete_Click(object sender, EventArgs e)
+        {
+            string name = txtName.Text;
+            DialogResult result = MessageBox.Show($"Do you want to delete user {name}!", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (result == DialogResult.Yes)
+            {
+                SqlConnection conn = new SqlConnection(connectionString);
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "DELETE FROM pl_users where user_id = @userid";
+                    cmd.Parameters.AddWithValue("@userid", userId);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                    conn.Close();
+                    MessageBox.Show($"User Deleted!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    showData();
+
+                }
+            }
+        }
+
+
     }
 
 

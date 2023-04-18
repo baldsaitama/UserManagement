@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
@@ -6,6 +7,7 @@ namespace UserManagement
 {
     public partial class frmAddMore : Form
     {
+        int roleId = 0;
         private Dictionary<int, bool> permissions = new Dictionary<int, bool>();
 
         frmUserAdmin addRoles = new frmUserAdmin();
@@ -15,8 +17,6 @@ namespace UserManagement
         {
             InitializeComponent();
         }
-
-
         public void clearControls(Control parentControl)
         {
             foreach (Control c in parentControl.Controls)
@@ -38,7 +38,7 @@ namespace UserManagement
                     dateTimePicker.Value = DateTime.Now;
                 }
             }
-            
+
         }
         private void btnAddRole_Click(object sender, EventArgs e)
         {
@@ -114,7 +114,6 @@ namespace UserManagement
                 clearControls(this);
             }
         }
-
         public void BindRolesToComboBox()
         {
             DataTable rolesTable = new DataTable();
@@ -141,12 +140,13 @@ namespace UserManagement
         }
         public void showAllRoles()
         {
-            SqlDataAdapter adapter= new SqlDataAdapter("Select * from pl_roles", connectionString);
-            DataTable dataTable= new DataTable();
+            btnDeleteRole.Enabled = true;
+            SqlDataAdapter adapter = new SqlDataAdapter("Select role_id, name as Roles from pl_roles", connectionString);
+            DataTable dataTable = new DataTable();
             adapter.Fill(dataTable);
-            ugRoleList.DataSource= dataTable;
+            ugRoleList.DataSource = dataTable;
+            ugRoleList.Columns[0].Visible = false;
         }
-
         public void showAllDepartments()
         {
             SqlDataAdapter adapter = new SqlDataAdapter("Select * from pl_departments", connectionString);
@@ -161,22 +161,15 @@ namespace UserManagement
             adapter.Fill(dataTable);
             ugDesignation.DataSource = dataTable;
         }
-
-        private void btnUpdateRole_Click(object sender, EventArgs e)
-        {
-
-        }
         private void frmAddMore_Load(object sender, EventArgs e)
         {
+            btnDeleteRole.Enabled = false;
             showPermission();
             BindRolesToComboBox();
             showAllRoles();
             showAllDepartments();
             showAllDesignations();
         }
-
-
-
         private void btnAddPermission_Click(object sender, EventArgs e)
         {
             using (SqlConnection conn = new SqlConnection(connectionString))
@@ -244,6 +237,50 @@ namespace UserManagement
             {
                 MessageBox.Show(ex.Message);
             }
+        }
+        private void btnDeleteRole_Click(object sender, EventArgs e)
+        {
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        SqlCommand updateUserTable = new SqlCommand("Update pl_users set fk_role_id = null where fk_role_id = @roleid", conn, trans);
+                        updateUserTable.Parameters.AddWithValue("@roleid", roleId);
+                        SqlCommand dltroleperm = new SqlCommand("Delete from pl_roles_permissions where fk_role_id = @roleid", conn, trans);
+                        dltroleperm.Parameters.AddWithValue("@roleid", roleId);
+                        SqlCommand dltrole = new SqlCommand("Delete from pl_roles where role_id = @roleid", conn, trans);
+                        dltrole.Parameters.AddWithValue("@roleid", roleId);
+                        updateUserTable.ExecuteNonQuery();
+                        dltroleperm.ExecuteNonQuery();
+                        dltrole.ExecuteNonQuery();
+                        trans.Commit();
+                        MessageBox.Show("Role Deleted!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+
+                    catch (Exception ex)
+                    {
+                        trans.Rollback();
+                        MessageBox.Show("An error occurred: " + ex.Message);
+                    }
+                    finally
+                    {
+                        showAllRoles();
+
+                        conn.Close();
+                    }
+                }
+
+            }
+        }
+
+        private void ugRoleList_CellContentDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            btnAddRole.Enabled = false;
+            roleId = Convert.ToInt32(ugRoleList.Rows[e.RowIndex].Cells[0].Value.ToString());
+            txtRoleName.Text = ugRoleList.Rows[e.RowIndex].Cells[1].Value.ToString();
         }
     }
 }
